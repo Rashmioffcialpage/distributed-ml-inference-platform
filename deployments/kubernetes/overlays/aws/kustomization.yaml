@@ -1,0 +1,32 @@
+# Cloud overlay: same manifests as ../../base, with image references
+# retargeted from the local `teslaedge/<service>:latest` names to whatever
+# ECR pushed them to. The `newName`/`newTag` values below are placeholders —
+# deployments/scripts/build-and-push-ecr.sh rewrites them in place (via
+# `kustomize edit set image`) after it pushes, using terraform's
+# ecr_repository_urls output. You can also run that command by hand; see
+# docs/cloud-deploy.md.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../base
+
+images:
+  - name: teslaedge/router
+    newName: teslaedge/router
+    newTag: latest
+  - name: teslaedge/gateway
+    newName: teslaedge/gateway
+    newTag: latest
+  - name: teslaedge/scheduler
+    newName: teslaedge/scheduler
+    newTag: latest
+  - name: teslaedge/model-deployer
+    newName: teslaedge/model-deployer
+    newTag: latest
+  - name: teslaedge/fleet-simulator
+    newName: teslaedge/fleet-simulator
+    newTag: latest
+  - name: teslaedge/ml-worker
+    newName: teslaedge/ml-worker
+    newTag: latest

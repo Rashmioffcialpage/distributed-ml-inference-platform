@@ -1,0 +1,10 @@
+# Copy to terraform.tfvars and edit as needed:
+#   cp terraform.tfvars.example terraform.tfvars
+#
+# terraform.tfvars is gitignored (see deployments/terraform/.gitignore) —
+# it's your local config, not something to commit.
+
+aws_region         = "us-east-1"
+cluster_name       = "teslaedge"
+node_instance_type = "t3.medium"
+node_desired_size  = 2

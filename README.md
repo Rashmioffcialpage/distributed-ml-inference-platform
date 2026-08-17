@@ -41,7 +41,8 @@ flowchart LR
 Full diagram, data flow walkthrough, and dataset methodology:
 [docs/architecture.md](docs/architecture.md). Why each piece is shaped the
 way it is, alternatives considered, and what was traded off:
-[docs/design-decisions.md](docs/design-decisions.md). A narrative writeup of
+[docs/design-decisions.md](docs/design-decisions.md). Deploying this to a
+real AWS account: [docs/cloud-deploy.md](docs/cloud-deploy.md). A narrative writeup of
 what actually broke while building this (the quantization result that went
 the "wrong" way, the dataset that had to change, three real bugs Docker
 verification surfaced): [docs/blog-post.md](docs/blog-post.md).
@@ -81,7 +82,11 @@ models/                  Trained model artifacts + metrics (checked in — see b
 benchmarks/              Load-test tool (Go) + real benchmark JSON output
 deployments/
   docker/                 Per-service Dockerfiles
-  kubernetes/              Deployment/Service/HPA manifests + kustomization
+  kubernetes/
+    base/                  Deployment/Service/HPA manifests + kustomization
+    overlays/aws/          Retargets base images at ECR for a cloud deploy
+  terraform/               AWS EKS + ECR (see docs/cloud-deploy.md)
+  scripts/                 build-and-push-ecr.sh
 monitoring/               Prometheus scrape config, Grafana dashboard + provisioning
 tests/
   ml/                      pytest suite for the ML pipeline
@@ -145,9 +150,15 @@ benchmarked because there's no CPU kernel for it in this environment):
 - **The serving worker has no dynamic batching or warm pool** — each
   `/predict` call runs a single-sample forward pass; see
   [Future improvements](#future-improvements).
-- **K8s manifests are config-validated, not live-deployed** — no cluster was
-  available in the environment this repo was built in. `docker compose up`,
-  however, *was* — see below.
+- **K8s manifests are config-validated, not live-deployed to a real cloud
+  account** — no AWS account with working credentials was available in the
+  environment this repo was built in (the AWS credentials present there
+  returned `InvalidClientTokenId`). `docker compose up` *was* live-verified
+  — see below. `deployments/terraform` (EKS + ECR) and
+  `deployments/kubernetes/overlays/aws` are prepared and validated as far
+  as possible without a real account — see
+  [What was and wasn't validated](docs/cloud-deploy.md#what-was-and-wasnt-validated)
+  for exactly what that means and doesn't mean.
 - **Getting `docker compose up` working meant routing around this sandbox's
   network policy, not just waiting it out.** Docker Hub itself returned
   `403 Forbidden` on every base image; `mirror.gcr.io` (Google's public,
@@ -199,7 +210,7 @@ Add `--profile kafka` to also start Kafka and set `QUEUE_BACKEND=kafka` on
 ### Kubernetes
 
 ```bash
-kubectl apply -k deployments/kubernetes/
+kubectl apply -k deployments/kubernetes/base   # generic cluster, teslaedge/<service>:latest images
 ```
 
 Builds referenced as `teslaedge/<service>:latest` — build and push them
@@ -207,6 +218,13 @@ first (or point `imagePullPolicy`/image tags at your registry). Includes an
 HPA on the gateway and two ML-worker Deployments (FP32/INT8) so the
 router's precision-aware selection has real heterogeneous workers to choose
 between.
+
+### Cloud deploy (AWS EKS)
+
+`deployments/terraform` provisions an EKS cluster + ECR, and
+`deployments/kubernetes/overlays/aws` retargets the same base manifests at
+whatever ECR pushes images to. Full walkthrough, cost warnings, and
+teardown steps: **[docs/cloud-deploy.md](docs/cloud-deploy.md)**.
 
 ### Training models from scratch
 
