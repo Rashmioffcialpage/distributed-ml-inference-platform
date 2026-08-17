@@ -25,18 +25,44 @@ Reproduce: `python3 ml/training/train_<model>.py --version v1`
 |---|---|---|---|---|---|
 | `event_classifier` | 4-class driving-event classification | accuracy / macro-F1 | 0.996 / 0.982 | 8.1s | 20,000 / 4,000 |
 | `trajectory` | next-position regression (LSTM) | val ADE (avg displacement error) | 0.42 m | 4.3s | 8,000 / 1,500 |
-| `perception` | 3-class obstacle detection (CNN) | accuracy / macro-F1 | 1.000 / 1.000 | 5.7s | 6,000 / 1,200 |
+| `perception` (synthetic) | 3-class obstacle detection (CNN) | accuracy / macro-F1 | 1.000 / 1.000 | 5.7s | 6,000 / 1,200 |
+| `perception_real` (FTSC) | 6-class real traffic-sign classification (CNN) | accuracy / macro-F1 | **0.869 / 0.844** | 15.3s | 3,200 / 800 |
 
-All three train on **procedurally generated synthetic data** (see
+The first three train on **procedurally generated synthetic data** (see
 `ml/common/synthetic_data.py` and `ml/perception/synthetic_frames.py`) —
-TeslaEdge has no real vehicle fleet or camera dataset. The perception task's
-perfect score reflects that the synthetic frames are, by design, an easy
-signal-detection problem (a Gaussian blob vs. background noise); it
+TeslaEdge started with no real vehicle fleet or camera dataset. The
+synthetic perception task's perfect score reflects that it's, by design, an
+easy signal-detection problem (a Gaussian blob vs. background noise); it
 demonstrates the training/eval/registry pipeline working end to end, not a
-claim about real-world perception accuracy. See
-[Dataset methodology](architecture.md#dataset-methodology) for why synthetic
-data was the right call for a portfolio project and what a real deployment
-would need instead.
+claim about real-world perception accuracy.
+
+`perception_real` replaces that synthetic frame generator with
+**[FTSC](https://github.com/andrewcaunes/FTSC)** — 10,959 real photographs
+of French traffic signs from vehicle-mounted cameras, CC BY-NC 4.0 licensed.
+Same `PerceptionCNN` architecture (`ml/perception/model.py`, now
+parameterized by channel count/image size/class count), real RGB 64x64
+images, 6 real coarse sign categories. **0.869 accuracy / 0.844 macro-F1 is
+a genuinely imperfect number** — it reflects real class imbalance (see the
+per-class report below) rather than a synthetic task's ceiling effect.
+Reproduce with `python3 ml/training/train_perception_real.py --version v1
+--epochs 10 --limit 4000` (downloads the dataset on first run, ~233MB).
+
+Per-class breakdown (800-image validation split):
+
+| Class | Precision | Recall | F1 | Support |
+|---|---|---|---|---|
+| regulatory | 0.94 | 0.94 | 0.94 | 389 |
+| informative | 0.88 | 0.79 | 0.83 | 158 |
+| NIC (not in catalogue) | 0.70 | 0.76 | 0.73 | 148 |
+| danger | 0.87 | 0.87 | 0.87 | 55 |
+| temporary | 0.82 | 0.94 | 0.87 | 33 |
+| others | 0.87 | 0.76 | 0.81 | 17 |
+
+GTSRB (Kaggle) was the first choice for this — see
+[Dataset methodology](architecture.md#dataset-methodology) for why Kaggle
+and Hugging Face weren't reachable from the environment this was built in,
+and `ml/perception/download_gtsrb_kaggle.py` for the ready-to-run swap-in
+script if you have Kaggle API access.
 
 ## Quantization benchmark (FP32 / FP16 / INT8)
 

@@ -1,7 +1,7 @@
 {
   "accuracy": 1.0,
   "macro_f1": 1.0,
-  "train_seconds": 5.66,
+  "train_seconds": 5.91,
   "train_size": 6000,
   "val_size": 1200
 }

@@ -1,0 +1,18 @@
+{
+  "dataset": "FTSC (French Traffic Sign Classification)",
+  "dataset_url": "https://github.com/andrewcaunes/FTSC",
+  "dataset_license": "CC BY-NC 4.0",
+  "classes": [
+    "regulatory",
+    "informative",
+    "NIC",
+    "danger",
+    "temporary",
+    "others"
+  ],
+  "accuracy": 0.8688,
+  "macro_f1": 0.8436,
+  "train_seconds": 15.34,
+  "train_size": 3200,
+  "val_size": 800
+}

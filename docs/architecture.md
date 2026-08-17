@@ -154,7 +154,38 @@ project actually demonstrates. Instead, `ml/common/synthetic_data.py` and
   standing in for near/far obstacle detection.
 
 Every generator is seeded and documented as synthetic in its own docstring
-and in [benchmarks.md](benchmarks.md#model-training-results). A real
-deployment would replace these modules' outputs with actual fleet telemetry
-and labeled camera data — the Go services, routing logic, registry, and
-monitoring stack downstream of them would not need to change.
+and in [benchmarks.md](benchmarks.md#model-training-results).
+
+**Perception was subsequently re-evaluated on a real public dataset.**
+Synthetic frames were the right starting point for validating the pipeline
+end to end quickly, but they cap out at a trivial signal-detection problem
+(100% accuracy, see benchmarks). `ml/perception/real_dataset.py` and
+`ml/training/train_perception_real.py` train the same `PerceptionCNN`
+architecture on **[FTSC (French Traffic Sign Classification)](https://github.com/andrewcaunes/FTSC)**
+— 10,959 real photographs of French traffic signs cropped from vehicle-mounted
+cameras in Antony, France, in varying weather and lighting, licensed
+**CC BY-NC 4.0** (non-commercial use with attribution, which is exactly this
+project's use). Real-world result: **86.9% accuracy / 84.4% macro-F1** across
+6 sign categories (regulatory, informative, danger, temporary, "not in
+catalogue", other) — a genuinely imperfect, class-imbalance-affected number,
+which is a more honest demonstration of a trained model than the synthetic
+task's 100%. See [benchmarks.md](benchmarks.md#model-training-results) for
+the full per-class breakdown.
+
+[GTSRB](https://www.kaggle.com/datasets/meowmeowmeowmeowmeow/gtsrb-german-traffic-sign)
+(German Traffic Sign Recognition Benchmark) — the field's most widely-cited
+traffic-sign dataset — was the first choice, but Kaggle and every Hugging
+Face host (main site, CDN, `datasets-server`) returned `403 Forbidden` from
+the sandbox this project was developed in, the same network restriction that
+blocks Docker Hub (see the README's [known limitations](../README.md#failure-cases--known-limitations)).
+GitHub-hosted content was reachable, which is how FTSC was found and used
+instead. `ml/perception/download_gtsrb_kaggle.py` is provided, ready to run
+on a machine with Kaggle API access, for anyone who wants to swap GTSRB in —
+`PerceptionCNN`'s architecture already supports it unchanged (it's
+parameterized by channel count, image size and class count for exactly this
+reason).
+
+A real deployment would replace the telemetry/trajectory generators'
+outputs with actual fleet telemetry the same way — the Go services, routing
+logic, registry, and monitoring stack downstream of them would not need to
+change.

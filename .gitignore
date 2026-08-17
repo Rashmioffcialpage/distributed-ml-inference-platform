@@ -16,3 +16,7 @@ __pycache__/
 # CI-only smoke-test model artifacts (see .github/workflows/python-ci.yml)
 /models/*/ci-smoke/
 /benchmarks/loadtest/loadtest
+
+# Downloaded real datasets (fetched on demand by ml/perception/real_dataset.py
+# and similar loaders) — licensed third-party content, not repo content.
+/data/

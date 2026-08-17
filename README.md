@@ -71,7 +71,7 @@ ml/
   training/               Training scripts (event classifier, trajectory, perception)
   evaluation/             Standalone model evaluation against fresh holdout data
   quantization/           Real FP32/FP16/INT8 benchmarking
-  perception/, trajectory/  Model architectures + synthetic frame generation
+  perception/, trajectory/  Model architectures + synthetic frame generation + real FTSC dataset loader
   pipelines/              Drift detection + retrain-and-promote pipeline
   serving/                FastAPI inference worker (loads a trained model, serves /predict)
 models/                  Trained model artifacts + metrics (checked in — see below)
@@ -92,13 +92,20 @@ docs/                    architecture.md, design-decisions.md, benchmarks.md
 |---|---|---|---|
 | `event_classifier` | 3-layer MLP (5→32→32→4) | 5-dim telemetry (speed, accel, steering, jerk, noise) | 4-class driving event |
 | `trajectory` | 1-layer LSTM (hidden=32) + linear head | 10-step (x,y) position history | Next (x,y) position |
-| `perception` | 2-conv-layer CNN + FC head | 1x32x32 grayscale frame | 3-class (clear / obstacle far / obstacle near) |
+| `perception` (synthetic) | 2-conv-layer CNN + FC head | 1x32x32 grayscale frame | 3-class (clear / obstacle far / obstacle near) |
+| `perception_real` | same CNN, 3-channel/64px variant | 3x64x64 RGB traffic-sign photo | 6-class real sign category |
 
-All three are deliberately small — the point is demonstrating the
-surrounding ML infrastructure (routing, quantization, versioning, drift
-detection), not chasing state-of-the-art accuracy on procedurally generated
-data. See [docs/architecture.md#dataset-methodology](docs/architecture.md#dataset-methodology)
-for exactly how the training data is generated and why.
+All are deliberately small — the point is demonstrating the surrounding ML
+infrastructure (routing, quantization, versioning, drift detection), not
+chasing state-of-the-art accuracy. `event_classifier` and `trajectory` train
+on procedurally generated synthetic data; `perception_real` trains on
+**[FTSC](https://github.com/andrewcaunes/FTSC)**, a real public dataset of
+10,959 vehicle-camera traffic-sign photographs (CC BY-NC 4.0 — used here
+non-commercially, with attribution). GTSRB on Kaggle was the first choice —
+see [why it isn't the one shipped here](docs/architecture.md#dataset-methodology)
+and `ml/perception/download_gtsrb_kaggle.py` if you want to swap it in
+yourself. See [docs/architecture.md#dataset-methodology](docs/architecture.md#dataset-methodology)
+for the full methodology.
 
 ## Results (real, measured — not invented)
 
@@ -106,7 +113,8 @@ for exactly how the training data is generated and why.
 |---|---|
 | Event classifier accuracy / macro-F1 | 0.996 / 0.982 |
 | Trajectory prediction (avg displacement error) | 0.42 m |
-| Perception accuracy / macro-F1 | 1.000 / 1.000 (synthetic task — see caveat in benchmarks doc) |
+| Perception (synthetic task) accuracy / macro-F1 | 1.000 / 1.000 (trivial by design — see caveat in benchmarks doc) |
+| **Perception on real data** (FTSC, real traffic signs) accuracy / macro-F1 | **0.869 / 0.844** |
 | INT8 vs FP32 model size | 6.59 KB vs 8.50 KB (-22%) |
 | INT8 vs FP32 batched throughput | 3.82M vs 2.17M samples/s (+76%) |
 | End-to-end load test, 1 worker | 480.7 req/s, p50 99ms, 0 failures / 9,614 requests |
@@ -142,6 +150,14 @@ benchmarked because there's no CPU kernel for it in this environment):
   [Reproducing this yourself](#reproducing-this-yourself). Treat
   `docker compose up` on a normal machine as the next thing to verify, not
   as already proven here.
+- **GTSRB (Kaggle) was the intended real perception dataset; FTSC (GitHub)
+  is what actually ships.** The same sandbox network policy that blocks
+  Docker Hub also returns `403 Forbidden` for Kaggle and every Hugging Face
+  host — confirmed by directly testing each one, not assumed. GitHub-hosted
+  data was reachable, so FTSC (a real, CC BY-NC 4.0 licensed traffic-sign
+  photo dataset) was used instead, and a ready-to-run GTSRB download script
+  (`ml/perception/download_gtsrb_kaggle.py`) is provided for anyone with
+  Kaggle access who wants to swap it in.
 
 ## Deployment instructions
 
@@ -224,10 +240,11 @@ Go/Python toolchains). In order:
 # 1. Go services build & test
 go build ./... && go vet ./... && go test ./...   # run inside each services/*/ and shared/
 
-# 2. Train and evaluate all three models
+# 2. Train and evaluate all models (synthetic + real)
 python3 ml/training/train_event_classifier.py --version v1
 python3 ml/training/train_trajectory.py --version v1
 python3 ml/training/train_perception.py --version v1
+python3 ml/training/train_perception_real.py --version v1 --epochs 10 --limit 4000  # downloads FTSC, ~233MB, first run only
 python3 ml/evaluation/evaluate.py --model event_classifier --version v1
 
 # 3. Quantization benchmark
