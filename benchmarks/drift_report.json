@@ -1,0 +1,37 @@
+{
+  "model_version": "v1",
+  "feature_drift": {
+    "speed_kph": {
+      "ks_statistic": 0.2905,
+      "p_value": 0.0,
+      "drifted": true
+    },
+    "accel_ms2": {
+      "ks_statistic": 0.2578,
+      "p_value": 0.0,
+      "drifted": true
+    },
+    "steering_deg": {
+      "ks_statistic": 0.0306,
+      "p_value": 0.135466,
+      "drifted": false
+    },
+    "jerk": {
+      "ks_statistic": 0.0228,
+      "p_value": 0.442385,
+      "drifted": false
+    },
+    "noise": {
+      "ks_statistic": 0.0223,
+      "p_value": 0.470812,
+      "drifted": false
+    }
+  },
+  "output_psi": 0.0,
+  "psi_thresholds": {
+    "warn": 0.1,
+    "alert": 0.25
+  },
+  "verdict": "drift_detected",
+  "recommend_retrain": true
+}

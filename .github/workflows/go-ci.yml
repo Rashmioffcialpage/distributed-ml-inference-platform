@@ -1,0 +1,56 @@
+name: Go CI
+
+on:
+  push:
+    branches: [main]
+    paths: ["shared/**", "services/**", "go.work", ".github/workflows/go-ci.yml"]
+  pull_request:
+    paths: ["shared/**", "services/**", "go.work", ".github/workflows/go-ci.yml"]
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        module:
+          - shared
+          - services/gateway-go
+          - services/router-go
+          - services/scheduler-go
+          - services/fleet-simulator-go
+          - services/model-deployer-go
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+          cache-dependency-path: ${{ matrix.module }}/go.sum
+
+      - name: go build
+        working-directory: ${{ matrix.module }}
+        run: go build ./...
+
+      - name: go vet
+        working-directory: ${{ matrix.module }}
+        run: go vet ./...
+
+      - name: go test
+        working-directory: ${{ matrix.module }}
+        run: go test -race -cover ./...
+
+  gofmt-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with: { go-version: "1.25" }
+      - name: Check gofmt
+        run: |
+          unformatted=$(gofmt -l ./shared ./services)
+          if [ -n "$unformatted" ]; then
+            echo "The following files are not gofmt'd:"
+            echo "$unformatted"
+            exit 1
+          fi

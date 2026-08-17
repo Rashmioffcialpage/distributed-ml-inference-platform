@@ -1,0 +1,32 @@
+{
+  "device": "cpu",
+  "torch_version": "2.13.0+cu130",
+  "n_samples": 2000,
+  "fp32": {
+    "accuracy": 0.9935,
+    "p50_latency_ms": 0.0377,
+    "p95_latency_ms": 0.0572,
+    "mean_latency_ms": 0.0405,
+    "throughput_rps_batched": 2173107.6,
+    "model_size_kb": 8.5
+  },
+  "fp16": {
+    "accuracy": 0.9935,
+    "p50_latency_ms": 0.0416,
+    "p95_latency_ms": 0.0725,
+    "mean_latency_ms": 0.0448,
+    "throughput_rps_batched": 2170770.1,
+    "model_size_kb": 5.81
+  },
+  "int8": {
+    "accuracy": 0.9945,
+    "p50_latency_ms": 0.1077,
+    "p95_latency_ms": 0.1626,
+    "mean_latency_ms": 0.1179,
+    "throughput_rps_batched": 3815694.3,
+    "model_size_kb": 6.59
+  },
+  "int4": {
+    "note": "Not benchmarked: no CPU INT4 kernel available in stock PyTorch on this hardware (would require GPU + bitsandbytes/TensorRT-LLM or similar). See docs/benchmarks.md."
+  }
+}

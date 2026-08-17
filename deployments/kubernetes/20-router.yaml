@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: router
+  namespace: teslaedge
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { app: router }
+  template:
+    metadata:
+      labels: { app: router }
+    spec:
+      containers:
+        - name: router
+          image: teslaedge/router:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - { name: grpc, containerPort: 9090 }
+            - { name: metrics, containerPort: 9091 }
+          envFrom:
+            - configMapRef: { name: teslaedge-config }
+          env:
+            - { name: ROUTER_GRPC_ADDR, value: ":9090" }
+            - { name: ROUTER_METRICS_ADDR, value: ":9091" }
+          readinessProbe:
+            httpGet: { path: /healthz, port: metrics }
+            initialDelaySeconds: 3
+          livenessProbe:
+            httpGet: { path: /healthz, port: metrics }
+            initialDelaySeconds: 10
+          resources:
+            requests: { cpu: 100m, memory: 64Mi }
+            limits: { cpu: 500m, memory: 256Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: router
+  namespace: teslaedge
+spec:
+  selector: { app: router }
+  ports:
+    - { name: grpc, port: 9090, targetPort: 9090 }
+    - { name: metrics, port: 9091, targetPort: 9091 }

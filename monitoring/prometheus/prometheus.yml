@@ -1,0 +1,20 @@
+global:
+  scrape_interval: 5s
+  evaluation_interval: 5s
+
+scrape_configs:
+  - job_name: gateway
+    static_configs:
+      - targets: ["gateway:8080"]
+  - job_name: router
+    static_configs:
+      - targets: ["router:9091"]
+  - job_name: scheduler
+    static_configs:
+      - targets: ["scheduler:9092"]
+  - job_name: fleet-simulator
+    static_configs:
+      - targets: ["fleet-simulator:9093"]
+  - job_name: model-deployer
+    static_configs:
+      - targets: ["model-deployer:8081"]

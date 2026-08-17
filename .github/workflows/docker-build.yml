@@ -1,0 +1,61 @@
+name: Docker Build
+
+on:
+  push:
+    branches: [main]
+    paths: ["shared/**", "services/**", "ml/**", "deployments/docker/**", ".github/workflows/docker-build.yml"]
+  pull_request:
+    paths: ["shared/**", "services/**", "ml/**", "deployments/docker/**", ".github/workflows/docker-build.yml"]
+
+jobs:
+  build-go-images:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - service: gateway-go
+            cmd: ./cmd/gateway
+          - service: router-go
+            cmd: ./cmd/router
+          - service: scheduler-go
+            cmd: ./cmd/scheduler
+          - service: fleet-simulator-go
+            cmd: ./cmd/simulator
+          - service: model-deployer-go
+            cmd: ./cmd/deployer
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build image (not pushed)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: deployments/docker/Dockerfile.go-service
+          build-args: |
+            SERVICE=${{ matrix.service }}
+            CMD_PATH=${{ matrix.cmd }}
+          push: false
+          tags: teslaedge/${{ matrix.service }}:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  build-ml-worker-image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Train a minimal model so the image has an artifact to embed
+        run: |
+          python3 -m venv /tmp/venv && . /tmp/venv/bin/activate
+          pip install -r ml/requirements.txt
+          python ml/training/train_event_classifier.py --version v1 --epochs 3 --train-size 2000 --val-size 500
+      - name: Build image (not pushed)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: deployments/docker/Dockerfile.ml-worker
+          push: false
+          tags: teslaedge/ml-worker:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

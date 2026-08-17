@@ -1,0 +1,81 @@
+# Two worker pools at different precisions, mirroring docker-compose's
+# ml-worker-fp32 / ml-worker-int8 split, so the router's precision-aware
+# routing has real heterogeneous workers to select between. In a cluster
+# with GPU nodes, add a nodeSelector/tolerations here and set
+# GPU_AVAILABLE=true so router-go's critical-priority GPU preference
+# (services/router-go/internal/routing/selector.go) has something to bite on.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ml-worker-fp32
+  namespace: teslaedge
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { app: ml-worker-fp32 }
+  template:
+    metadata:
+      labels: { app: ml-worker-fp32, role: ml-worker }
+    spec:
+      containers:
+        - name: ml-worker
+          image: teslaedge/ml-worker:latest
+          imagePullPolicy: IfNotPresent
+          ports: [{ name: http, containerPort: 8100 }]
+          envFrom:
+            - configMapRef: { name: teslaedge-config }
+          env:
+            - { name: WORKER_PORT, value: "8100" }
+            - { name: MODEL_VERSION, value: "v1" }
+            - { name: MODEL_PRECISION, value: "fp32" }
+            - { name: GPU_AVAILABLE, value: "false" }
+            - name: WORKER_ID
+              valueFrom: { fieldRef: { fieldPath: metadata.name } }
+            - name: POD_IP
+              valueFrom: { fieldRef: { fieldPath: status.podIP } }
+            - name: WORKER_ENDPOINT
+              value: "http://$(POD_IP):8100"
+          readinessProbe:
+            httpGet: { path: /healthz, port: http }
+            initialDelaySeconds: 5
+          resources:
+            requests: { cpu: 250m, memory: 256Mi }
+            limits: { cpu: "1", memory: 1Gi }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ml-worker-int8
+  namespace: teslaedge
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { app: ml-worker-int8 }
+  template:
+    metadata:
+      labels: { app: ml-worker-int8, role: ml-worker }
+    spec:
+      containers:
+        - name: ml-worker
+          image: teslaedge/ml-worker:latest
+          imagePullPolicy: IfNotPresent
+          ports: [{ name: http, containerPort: 8100 }]
+          envFrom:
+            - configMapRef: { name: teslaedge-config }
+          env:
+            - { name: WORKER_PORT, value: "8100" }
+            - { name: MODEL_VERSION, value: "v1" }
+            - { name: MODEL_PRECISION, value: "int8" }
+            - { name: GPU_AVAILABLE, value: "false" }
+            - name: WORKER_ID
+              valueFrom: { fieldRef: { fieldPath: metadata.name } }
+            - name: POD_IP
+              valueFrom: { fieldRef: { fieldPath: status.podIP } }
+            - name: WORKER_ENDPOINT
+              value: "http://$(POD_IP):8100"
+          readinessProbe:
+            httpGet: { path: /healthz, port: http }
+            initialDelaySeconds: 5
+          resources:
+            requests: { cpu: 250m, memory: 256Mi }
+            limits: { cpu: "1", memory: 1Gi }

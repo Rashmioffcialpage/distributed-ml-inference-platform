@@ -1,0 +1,15 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: teslaedge
+resources:
+  - 00-namespace.yaml
+  - 01-configmap.yaml
+  - 10-redis.yaml
+  - 11-postgres.yaml
+  - 20-router.yaml
+  - 21-gateway.yaml
+  - 22-scheduler.yaml
+  - 23-model-deployer.yaml
+  - 24-fleet-simulator.yaml
+  - 30-ml-workers.yaml
+  - 40-ingress.yaml

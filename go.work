@@ -1,0 +1,11 @@
+go 1.25.0
+
+use (
+	./shared
+	./services/gateway-go
+	./services/router-go
+	./services/scheduler-go
+	./services/fleet-simulator-go
+	./services/model-deployer-go
+	./benchmarks/loadtest
+)

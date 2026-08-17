@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: scheduler
+  namespace: teslaedge
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { app: scheduler }
+  template:
+    metadata:
+      labels: { app: scheduler }
+    spec:
+      containers:
+        - name: scheduler
+          image: teslaedge/scheduler:latest
+          imagePullPolicy: IfNotPresent
+          ports: [{ name: metrics, containerPort: 9092 }]
+          envFrom:
+            - configMapRef: { name: teslaedge-config }
+          env:
+            - { name: SCHEDULER_METRICS_ADDR, value: ":9092" }
+            - { name: RETRY_BACKOFF, value: "200ms" }
+          readinessProbe:
+            httpGet: { path: /healthz, port: metrics }
+            initialDelaySeconds: 3
+          resources:
+            requests: { cpu: 100m, memory: 64Mi }
+            limits: { cpu: 500m, memory: 256Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: scheduler
+  namespace: teslaedge
+spec:
+  selector: { app: scheduler }
+  ports: [{ name: metrics, port: 9092, targetPort: 9092 }]

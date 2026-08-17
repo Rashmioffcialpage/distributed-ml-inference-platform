@@ -1,0 +1,9 @@
+{
+  "accuracy": 0.9925,
+  "macro_f1": 0.9485,
+  "macro_precision": 0.9908,
+  "macro_recall": 0.9173,
+  "train_seconds": 4.11,
+  "train_size": 20000,
+  "val_size": 4000
+}

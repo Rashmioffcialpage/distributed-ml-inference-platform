@@ -1,0 +1,7 @@
+{
+  "val_ade_meters": 0.4182,
+  "val_fde_meters": 0.4182,
+  "train_seconds": 4.27,
+  "train_size": 8000,
+  "val_size": 1500
+}

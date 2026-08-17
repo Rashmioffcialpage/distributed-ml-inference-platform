@@ -1,0 +1,78 @@
+{
+  "title": "TeslaEdge Overview",
+  "uid": "teslaedge-overview",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "5s",
+  "time": { "from": "now-15m", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Fleet telemetry rate (ticks/sec)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "targets": [
+        { "expr": "rate(fleet_simulator_telemetry_ticks_total[1m])", "legendFormat": "telemetry ticks/s" }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Inference requests: OK vs error (rate)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "targets": [
+        { "expr": "rate(fleet_simulator_infer_ok_total[1m])", "legendFormat": "infer ok/s" },
+        { "expr": "rate(fleet_simulator_infer_err_total[1m])", "legendFormat": "infer err/s" }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Gateway request latency (p50/p95)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "targets": [
+        { "expr": "histogram_quantile(0.50, sum(rate(gateway_request_duration_seconds_bucket[1m])) by (le, route))", "legendFormat": "p50 {{route}}" },
+        { "expr": "histogram_quantile(0.95, sum(rate(gateway_request_duration_seconds_bucket[1m])) by (le, route))", "legendFormat": "p95 {{route}}" }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Gateway request rate by status",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "targets": [
+        { "expr": "sum(rate(gateway_requests_total[1m])) by (status)", "legendFormat": "{{status}}" }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Scheduler job outcomes (rate)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+      "targets": [
+        { "expr": "rate(scheduler_jobs_processed_total[1m])", "legendFormat": "processed/s" },
+        { "expr": "rate(scheduler_jobs_failed_total[1m])", "legendFormat": "failed/s" },
+        { "expr": "rate(scheduler_jobs_retried_total[1m])", "legendFormat": "retried/s" },
+        { "expr": "rate(scheduler_jobs_dead_lettered_total[1m])", "legendFormat": "dead-lettered/s" }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "Active fleet vehicles",
+      "type": "stat",
+      "gridPos": { "h": 8, "w": 6, "x": 12, "y": 16 },
+      "targets": [
+        { "expr": "fleet_simulator_active_vehicles" }
+      ]
+    },
+    {
+      "id": 7,
+      "title": "Model-deployer request rate",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 6, "x": 18, "y": 16 },
+      "targets": [
+        { "expr": "sum(rate(model_deployer_requests_total[1m])) by (route)", "legendFormat": "{{route}}" }
+      ]
+    }
+  ]
+}

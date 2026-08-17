@@ -1,0 +1,6 @@
+.git
+**/*.md
+docs
+tests
+benchmarks/*.json
+.github

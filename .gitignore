@@ -1,0 +1,18 @@
+# Go
+/services/*/bin/
+*.test
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+*.egg-info/
+
+# Local dev / IDE
+.vscode/
+.idea/
+*.swp
+
+# CI-only smoke-test model artifacts (see .github/workflows/python-ci.yml)
+/models/*/ci-smoke/
+/benchmarks/loadtest/loadtest

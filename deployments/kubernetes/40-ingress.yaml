@@ -1,0 +1,23 @@
+# Optional: exposes the gateway outside the cluster. Requires an ingress
+# controller (e.g. ingress-nginx) to already be installed; not applied by
+# default local-dev flows (kind/minikube usually just port-forward the
+# gateway Service instead).
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: teslaedge-gateway
+  namespace: teslaedge
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: teslaedge.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: gateway
+                port: { number: 8080 }

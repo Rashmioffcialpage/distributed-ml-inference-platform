@@ -1,0 +1,37 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fleet-simulator
+  namespace: teslaedge
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: fleet-simulator }
+  template:
+    metadata:
+      labels: { app: fleet-simulator }
+    spec:
+      containers:
+        - name: fleet-simulator
+          image: teslaedge/fleet-simulator:latest
+          imagePullPolicy: IfNotPresent
+          ports: [{ name: metrics, containerPort: 9093 }]
+          envFrom:
+            - configMapRef: { name: teslaedge-config }
+          env:
+            - { name: SIMULATOR_METRICS_ADDR, value: ":9093" }
+            - name: GATEWAY_API_KEY
+              valueFrom:
+                secretKeyRef: { name: teslaedge-secrets, key: GATEWAY_API_KEYS }
+          resources:
+            requests: { cpu: 200m, memory: 128Mi }
+            limits: { cpu: "1", memory: 512Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: fleet-simulator
+  namespace: teslaedge
+spec:
+  selector: { app: fleet-simulator }
+  ports: [{ name: metrics, port: 9093, targetPort: 9093 }]

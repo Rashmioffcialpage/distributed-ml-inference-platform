@@ -1,0 +1,77 @@
+syntax = "proto3";
+
+package inference.v1;
+
+option go_package = "github.com/rashmioffcialpage/distributed-ml-inference-platform/shared/proto/inference/v1;inferencev1";
+
+// Precision identifies the numeric precision a model worker should run inference at.
+enum Precision {
+  PRECISION_UNSPECIFIED = 0;
+  PRECISION_FP32 = 1;
+  PRECISION_FP16 = 2;
+  PRECISION_INT8 = 3;
+  PRECISION_INT4 = 4;
+}
+
+// Priority controls scheduling order in the job queue.
+enum Priority {
+  PRIORITY_NORMAL = 0;
+  PRIORITY_HIGH = 1;
+  PRIORITY_CRITICAL = 2;
+}
+
+message InferenceRequest {
+  string request_id = 1;
+  string vehicle_id = 2;
+  string model_name = 3;
+  string model_version = 4; // empty means "latest deployed version"
+  Precision preferred_precision = 5;
+  repeated float features = 6;
+  Priority priority = 7;
+  int64 submitted_at_unix_ms = 8;
+}
+
+message InferenceResponse {
+  string request_id = 1;
+  string worker_id = 2;
+  string model_name = 3;
+  string model_version = 4;
+  Precision precision_used = 5;
+  repeated float output = 6;
+  string predicted_label = 7;
+  float confidence = 8;
+  int64 latency_ms = 9;
+  int64 queue_time_ms = 10;
+}
+
+message HealthRequest {}
+
+message HealthResponse {
+  string status = 1;
+  int32 active_workers = 2;
+  int32 queue_depth = 3;
+  string router_version = 4;
+}
+
+message RegisterWorkerRequest {
+  string worker_id = 1;
+  repeated string supported_models = 2;
+  bool gpu_available = 3;
+  Precision max_precision = 4;
+  string endpoint = 5; // base URL the router forwards inference HTTP calls to
+}
+
+message RegisterWorkerResponse {
+  bool accepted = 1;
+}
+
+service InferenceService {
+  // Predict routes a single inference request to the best available worker.
+  rpc Predict(InferenceRequest) returns (InferenceResponse);
+  // StreamPredict allows a client to pipeline many requests over one connection.
+  rpc StreamPredict(stream InferenceRequest) returns (stream InferenceResponse);
+  // Health reports router and worker-pool status.
+  rpc Health(HealthRequest) returns (HealthResponse);
+  // RegisterWorker lets an inference worker announce itself to the router.
+  rpc RegisterWorker(RegisterWorkerRequest) returns (RegisterWorkerResponse);
+}

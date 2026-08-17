@@ -1,0 +1,27 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: teslaedge-config
+  namespace: teslaedge
+data:
+  QUEUE_BACKEND: "redis"
+  REDIS_ADDR: "redis:6379"
+  ROUTER_GRPC_ADDR: "router:9090"
+  GATEWAY_URL: "http://gateway:8080"
+  POSTGRES_DSN: "postgres://teslaedge:teslaedge@postgres:5432/teslaedge?sslmode=disable"
+  OTEL_EXPORTER_OTLP_ENDPOINT: "jaeger:4317"
+  FLEET_SIZE: "500"
+  RATE_LIMIT_RPS: "200"
+  RATE_LIMIT_BURST: "400"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: teslaedge-secrets
+  namespace: teslaedge
+type: Opaque
+stringData:
+  # Replace before deploying to a real cluster; committed only as a
+  # local-dev placeholder for a portfolio project.
+  GATEWAY_API_KEYS: "devkey"
+  POSTGRES_PASSWORD: "teslaedge"

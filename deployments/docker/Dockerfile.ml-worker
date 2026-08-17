@@ -1,0 +1,25 @@
+# TeslaEdge ML inference worker (Python/PyTorch). Build from the repo root:
+#   docker build -f deployments/docker/Dockerfile.ml-worker -t teslaedge/ml-worker .
+FROM python:3.11-slim
+
+WORKDIR /app
+RUN apt-get update && apt-get install -y --no-install-recommends gcc && rm -rf /var/lib/apt/lists/*
+
+COPY ml/requirements.txt /app/ml/requirements.txt
+RUN pip install --no-cache-dir -r /app/ml/requirements.txt
+
+COPY ml /app/ml
+COPY models /app/models
+
+# Generate the Python gRPC stubs from the shared proto at image build time
+# so the image is self-contained (no protoc needed at runtime).
+COPY shared/proto /app/shared/proto
+RUN python -m grpc_tools.protoc -I /app/shared/proto \
+      --python_out=/app/ml/serving --grpc_python_out=/app/ml/serving \
+      /app/shared/proto/inference/v1/inference.proto \
+    && touch /app/ml/serving/inference/__init__.py /app/ml/serving/inference/v1/__init__.py
+
+WORKDIR /app/ml/serving
+ENV MODELS_DIR=/app/models
+EXPOSE 8100
+CMD ["python", "server.py"]

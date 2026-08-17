@@ -1,0 +1,29 @@
+# Generic multi-stage build for any TeslaEdge Go service. Build with:
+#   docker build -f deployments/docker/Dockerfile.go-service \
+#     --build-arg SERVICE=gateway-go --build-arg CMD_PATH=./cmd/gateway \
+#     -t teslaedge/gateway .
+#
+# SERVICE must match a directory under services/, CMD_PATH is that
+# service's main package relative to its own module root.
+FROM golang:1.25-bookworm AS build
+ARG SERVICE
+ARG CMD_PATH
+# Deliberately not using go.work here: each service's go.mod already carries
+# a `replace .../shared => ../../shared` directive (see services/*/go.mod),
+# which resolves correctly as long as shared/ and services/<SERVICE>/ keep
+# the same relative layout inside the build context — no workspace file
+# needed, and it avoids go.work requiring every OTHER service's go.mod to
+# be present too.
+WORKDIR /src
+
+COPY shared shared
+COPY services/${SERVICE} services/${SERVICE}
+
+WORKDIR /src/services/${SERVICE}
+RUN go mod download all || true
+RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/service ${CMD_PATH}
+
+FROM gcr.io/distroless/static-debian12:nonroot
+COPY --from=build /out/service /service
+USER nonroot:nonroot
+ENTRYPOINT ["/service"]
