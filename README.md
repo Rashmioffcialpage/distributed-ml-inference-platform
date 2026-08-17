@@ -41,7 +41,10 @@ flowchart LR
 Full diagram, data flow walkthrough, and dataset methodology:
 [docs/architecture.md](docs/architecture.md). Why each piece is shaped the
 way it is, alternatives considered, and what was traded off:
-[docs/design-decisions.md](docs/design-decisions.md).
+[docs/design-decisions.md](docs/design-decisions.md). A narrative writeup of
+what actually broke while building this (the quantization result that went
+the "wrong" way, the dataset that had to change, three real bugs Docker
+verification surfaced): [docs/blog-post.md](docs/blog-post.md).
 
 ## How the Go services communicate
 
@@ -82,7 +85,7 @@ deployments/
 monitoring/               Prometheus scrape config, Grafana dashboard + provisioning
 tests/
   ml/                      pytest suite for the ML pipeline
-docs/                    architecture.md, design-decisions.md, benchmarks.md
+docs/                    architecture.md, design-decisions.md, benchmarks.md, blog-post.md
 .github/workflows/       Go CI, Python CI, Docker build CI
 ```
 
