@@ -13,8 +13,11 @@ import (
 	"github.com/google/uuid"
 	"github.com/rashmioffcialpage/distributed-ml-inference-platform/shared/pkg/models"
 	"github.com/rashmioffcialpage/distributed-ml-inference-platform/shared/pkg/queue"
+	"github.com/rashmioffcialpage/distributed-ml-inference-platform/shared/pkg/tracing"
 	inferencev1 "github.com/rashmioffcialpage/distributed-ml-inference-platform/shared/proto/inference/v1"
 )
+
+var tracer = tracing.Tracer("gateway")
 
 // Handler holds the gateway's dependencies.
 type Handler struct {
@@ -88,7 +91,9 @@ func (h *Handler) Infer(w http.ResponseWriter, r *http.Request) {
 	}
 
 	requestID := uuid.NewString()
-	ctx, cancel := context.WithTimeout(r.Context(), h.CallTimeout)
+	ctx, span := tracer.Start(r.Context(), "gateway.Infer")
+	defer span.End()
+	ctx, cancel := context.WithTimeout(ctx, h.CallTimeout)
 	defer cancel()
 
 	resp, err := h.Router.Predict(ctx, &inferencev1.InferenceRequest{

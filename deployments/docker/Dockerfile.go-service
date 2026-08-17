@@ -5,7 +5,13 @@
 #
 # SERVICE must match a directory under services/, CMD_PATH is that
 # service's main package relative to its own module root.
-FROM golang:1.25-bookworm AS build
+#
+# Base image is pulled via mirror.gcr.io — Google's public, unauthenticated
+# Docker Hub mirror (the same one GKE nodes use by default) — rather than
+# docker.io directly, for resilience against Docker Hub rate limits/outages.
+# Swap back to `golang:1.25-bookworm` if you'd rather pull from Docker Hub
+# directly; the image contents are identical either way.
+FROM mirror.gcr.io/library/golang:1.25-bookworm AS build
 ARG SERVICE
 ARG CMD_PATH
 # Deliberately not using go.work here: each service's go.mod already carries
@@ -20,7 +26,6 @@ COPY shared shared
 COPY services/${SERVICE} services/${SERVICE}
 
 WORKDIR /src/services/${SERVICE}
-RUN go mod download all || true
 RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/service ${CMD_PATH}
 
 FROM gcr.io/distroless/static-debian12:nonroot

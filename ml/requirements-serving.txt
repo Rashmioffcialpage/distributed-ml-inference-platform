@@ -1,0 +1,13 @@
+# Runtime dependencies for ml/serving/server.py only — the actual set of
+# packages the inference worker imports. See ml/requirements.txt for the
+# full set needed for training/evaluation/testing/benchmarking; that file
+# pulls in scipy, scikit-learn, pytest, httpx, requests and grpcio-tools,
+# none of which the running worker needs, so keeping them out of the
+# worker's Docker image (deployments/docker/Dockerfile.ml-worker) keeps it
+# meaningfully smaller.
+torch>=2.4
+numpy>=1.26
+fastapi>=0.110
+uvicorn[standard]>=0.29
+grpcio>=1.62
+protobuf>=5.26  # runtime for the generated inference_pb2*.py stubs (google.protobuf), separate from the grpcio-tools compiler

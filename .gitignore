@@ -20,3 +20,6 @@ __pycache__/
 # Downloaded real datasets (fetched on demand by ml/perception/real_dataset.py
 # and similar loaders) — licensed third-party content, not repo content.
 /data/
+
+# Scratch dir used for local-only Docker build caching, never committed.
+/.build-cache/

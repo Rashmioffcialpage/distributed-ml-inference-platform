@@ -37,7 +37,7 @@ func main() {
 	}
 
 	routerAddr := config.String("ROUTER_GRPC_ADDR", "localhost:9090")
-	conn, err := grpc.NewClient(routerAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := grpc.NewClient(routerAddr, grpc.WithTransportCredentials(insecure.NewCredentials()), tracing.GRPCClientOption())
 	if err != nil {
 		log.Error("failed to dial router", "addr", routerAddr, "error", err)
 		os.Exit(1)

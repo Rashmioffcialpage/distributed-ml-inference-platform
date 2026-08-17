@@ -11,8 +11,11 @@ import (
 
 	"github.com/rashmioffcialpage/distributed-ml-inference-platform/shared/pkg/models"
 	"github.com/rashmioffcialpage/distributed-ml-inference-platform/shared/pkg/queue"
+	"github.com/rashmioffcialpage/distributed-ml-inference-platform/shared/pkg/tracing"
 	inferencev1 "github.com/rashmioffcialpage/distributed-ml-inference-platform/shared/proto/inference/v1"
 )
+
+var tracer = tracing.Tracer("scheduler")
 
 // Dispatcher pulls jobs off a queue topic and executes them against the router.
 type Dispatcher struct {
@@ -74,6 +77,9 @@ func (d *Dispatcher) Run(ctx context.Context) error {
 }
 
 func (d *Dispatcher) handle(ctx context.Context, job models.InferenceJob, raw []byte) error {
+	ctx, span := tracer.Start(ctx, "scheduler.dispatch")
+	defer span.End()
+
 	job.Attempt++
 	features := make([]float32, len(job.Features))
 	for i, f := range job.Features {

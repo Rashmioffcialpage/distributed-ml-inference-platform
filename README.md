@@ -121,6 +121,7 @@ for the full methodology.
 | End-to-end load test, 2 workers | 606.0 req/s, p50 89ms, 0 failures / 12,119 requests |
 | Retry/DLQ behavior | Verified by test: 3 attempts → 1 dead-lettered job |
 | Drift detection | Correctly flagged 2/5 shifted features, ignored 3/5 unshifted (KS test, α=0.01) |
+| **Full `docker compose up` stack** | **All 12 containers healthy; sync + async inference, model registry, 200-vehicle fleet, and distributed tracing all verified live** — see [Monitoring](#monitoring) |
 
 Full numbers, methodology, and honest limitations (e.g. INT4 wasn't
 benchmarked because there's no CPU kernel for it in this environment):
@@ -141,15 +142,29 @@ benchmarked because there's no CPU kernel for it in this environment):
 - **The serving worker has no dynamic batching or warm pool** — each
   `/predict` call runs a single-sample forward pass; see
   [Future improvements](#future-improvements).
-- **`docker compose up` / K8s manifests are config-validated, not
-  live-deployed, in the environment this repo was built in** — that
-  sandbox's network policy blocks Docker Hub image pulls entirely. Every Go
-  service, the full Python ML pipeline, and the complete request path
-  (gateway → router → worker, sync and async) *were* run and verified
-  natively (binaries + `python3` directly, with local Redis/Postgres) — see
-  [Reproducing this yourself](#reproducing-this-yourself). Treat
-  `docker compose up` on a normal machine as the next thing to verify, not
-  as already proven here.
+- **K8s manifests are config-validated, not live-deployed** — no cluster was
+  available in the environment this repo was built in. `docker compose up`,
+  however, *was* — see below.
+- **Getting `docker compose up` working meant routing around this sandbox's
+  network policy, not just waiting it out.** Docker Hub itself returned
+  `403 Forbidden` on every base image; `mirror.gcr.io` (Google's public,
+  unauthenticated Docker Hub mirror — the same one GKE nodes use by
+  default) worked and is what the Dockerfiles/compose file use now,
+  permanently, not just as a one-off fix. Two more real bugs surfaced and
+  got fixed in the process, not glossed over: (1) the default PyPI `torch`
+  wheel is CUDA-linked and fails to import without its NVIDIA libraries
+  even in a CPU-only container — `ml/requirements-serving.txt` +
+  `Dockerfile.ml-worker`'s multi-stage split now keep the worker image to
+  only what `ml/serving/server.py` actually imports, and document the
+  CUDA-import finding directly in the Dockerfile; (2) OpenTelemetry was
+  *initialized* but no code ever created a span, so "traces propagate
+  Gateway → Router" was true of the plumbing but not of any actual
+  request — `services/gateway-go/internal/handler/http.go` and
+  `services/scheduler-go/internal/worker/dispatcher.go` now create real
+  spans, and `shared/pkg/tracing.GRPCServerOption`/`GRPCClientOption` wire
+  up `otelgrpc` so a trace ID actually follows a request from Gateway into
+  Router. Both fixes are permanent and independent of the sandbox issue —
+  see [Monitoring](#monitoring) for the live trace this produced.
 - **GTSRB (Kaggle) was the intended real perception dataset; FTSC (GitHub)
   is what actually ships.** The same sandbox network policy that blocks
   Docker Hub also returns `403 Forbidden` for Kaggle and every Hugging Face
@@ -173,9 +188,10 @@ docker compose up --build
 ```
 
 This starts Redis, Postgres, Jaeger, Prometheus, Grafana, all five Go
-services, and two ML workers (FP32 + INT8). Add `--profile kafka` to also
-start Kafka and set `QUEUE_BACKEND=kafka` on `gateway`/`scheduler` to use it
-instead of Redis Streams.
+services, and two ML workers (FP32 + INT8) — 12 containers, all verified
+healthy end to end (see [Monitoring](#monitoring) for the live screenshots).
+Add `--profile kafka` to also start Kafka and set `QUEUE_BACKEND=kafka` on
+`gateway`/`scheduler` to use it instead of Redis Streams.
 
 ### Kubernetes
 
@@ -267,14 +283,32 @@ Grafana auto-provisions a "TeslaEdge Overview" dashboard
 (`monitoring/grafana/provisioning/dashboards/json/teslaedge-overview.json`)
 covering fleet telemetry rate, inference success/error rate, gateway
 latency percentiles, and scheduler job outcomes (processed/failed/retried/
-dead-lettered). OpenTelemetry traces propagate Gateway → Router → Scheduler
-and export to Jaeger (`OTEL_EXPORTER_OTLP_ENDPOINT`, defaults to stdout if
-unset). No dashboard screenshots are included in this repo — take one after
-running `docker compose up` and generating traffic; the provisioning is
-what's verified here, not a static image of it.
+dead-lettered). Screenshots below are from a live `docker compose up` run —
+200 simulated vehicles, real traffic, nothing staged:
+
+![Grafana dashboard showing live fleet telemetry, inference rate, gateway latency and scheduler outcomes](docs/screenshots/grafana-dashboard.png)
+
+OpenTelemetry traces propagate Gateway → Router via `otelgrpc`
+(`shared/pkg/tracing.GRPCServerOption`/`GRPCClientOption`), exporting to
+Jaeger (`OTEL_EXPORTER_OTLP_ENDPOINT`, defaults to stdout if unset). 20 real
+traces from a live run, each a `gateway.Infer` span containing the gRPC
+`Predict` child span:
+
+![Jaeger trace list showing 20 real gateway.Infer traces with real latencies](docs/screenshots/jaeger-traces.png)
+
+![Jaeger trace detail: gateway.Infer parent span containing the Predict gRPC child span](docs/screenshots/jaeger-trace-detail.png)
+
+Scheduler → Router calls are traced too
+(`services/scheduler-go/internal/worker/dispatcher.go`); Router → Worker
+(the Go→Python HTTP hop) is not yet instrumented — the Python worker has no
+OTel SDK wired in, so a trace currently ends at the Router. Noted honestly
+in [Future improvements](#future-improvements) rather than glossed over.
 
 ## Future improvements
 
+- OpenTelemetry instrumentation in `ml/serving/server.py` so a trace
+  continues from Router into the Python worker instead of ending at the
+  Router → Worker HTTP hop (see [Monitoring](#monitoring)).
 - Dynamic batching and a warm worker pool in `ml/serving/server.py` (today:
   one synchronous forward pass per request).
 - Real shadow-traffic/canary comparison using the registry's existing

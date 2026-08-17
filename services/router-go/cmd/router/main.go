@@ -51,7 +51,7 @@ func main() {
 		Version:    version,
 	}
 
-	grpcServer := grpc.NewServer()
+	grpcServer := grpc.NewServer(tracing.GRPCServerOption())
 	inferencev1.RegisterInferenceServiceServer(grpcServer, srv)
 	healthSrv := health.NewServer()
 	healthpb.RegisterHealthServer(grpcServer, healthSrv)

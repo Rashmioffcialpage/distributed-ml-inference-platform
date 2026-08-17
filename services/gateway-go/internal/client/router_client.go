@@ -2,6 +2,7 @@
 package client
 
 import (
+	"github.com/rashmioffcialpage/distributed-ml-inference-platform/shared/pkg/tracing"
 	inferencev1 "github.com/rashmioffcialpage/distributed-ml-inference-platform/shared/proto/inference/v1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -11,7 +12,7 @@ import (
 // run inside the same trusted network in docker-compose/k8s; put this
 // behind mTLS before exposing it beyond the cluster).
 func NewRouterClient(addr string) (inferencev1.InferenceServiceClient, func() error, error) {
-	conn, err := grpc.NewClient(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := grpc.NewClient(addr, grpc.WithTransportCredentials(insecure.NewCredentials()), tracing.GRPCClientOption())
 	if err != nil {
 		return nil, nil, err
 	}

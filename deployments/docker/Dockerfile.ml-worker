@@ -1,23 +1,49 @@
 # TeslaEdge ML inference worker (Python/PyTorch). Build from the repo root:
 #   docker build -f deployments/docker/Dockerfile.ml-worker -t teslaedge/ml-worker .
-FROM python:3.11-slim
+#
+# Pulled via mirror.gcr.io (Google's public Docker Hub mirror) for the same
+# reason as Dockerfile.go-service — see the comment there.
+#
+# Multi-stage: grpcio-tools (needed only to generate the Python gRPC stubs
+# from shared/proto at build time) and the training/eval/test-only
+# dependencies in ml/requirements.txt (scipy, scikit-learn, pytest, httpx,
+# requests) never end up in the final image — ml/serving/server.py doesn't
+# import any of them. See ml/requirements-serving.txt for the actual
+# runtime set.
 
+FROM mirror.gcr.io/library/python:3.11-slim AS protogen
+WORKDIR /build
+RUN pip install --no-cache-dir grpcio-tools>=1.62
+COPY shared/proto /build/shared/proto
+RUN mkdir -p /build/generated/inference/v1 \
+    && python -m grpc_tools.protoc -I /build/shared/proto \
+      --python_out=/build/generated --grpc_python_out=/build/generated \
+      /build/shared/proto/inference/v1/inference.proto \
+    && touch /build/generated/inference/__init__.py /build/generated/inference/v1/__init__.py
+
+FROM mirror.gcr.io/library/python:3.11-slim
 WORKDIR /app
-RUN apt-get update && apt-get install -y --no-install-recommends gcc && rm -rf /var/lib/apt/lists/*
+# No apt-get/gcc here on purpose: every dependency in
+# ml/requirements-serving.txt ships a prebuilt manylinux wheel for this
+# base image (verified before removing this step), so no C compiler is
+# needed at build time.
 
-COPY ml/requirements.txt /app/ml/requirements.txt
-RUN pip install --no-cache-dir -r /app/ml/requirements.txt
+COPY ml/requirements-serving.txt /app/ml/requirements-serving.txt
+# NOTE: the default PyPI `torch` wheel for Linux is CUDA-linked and eagerly
+# dlopen()s its NVIDIA CUDA shared libraries (libcudart, libcublasLt, ...)
+# at import time — verified directly: skipping them with --no-deps to
+# shrink the image made `import torch` fail with "libcublasLt.so not
+# found", confirming they're a real import-time requirement for this
+# wheel, not just a GPU-only cost, even though every worker in this repo
+# runs CPU-only (GPU_AVAILABLE=false everywhere, see docker-compose.yml).
+# `pip install torch --index-url https://download.pytorch.org/whl/cpu`
+# gets the official prebuilt CPU-only wheel instead (no CUDA libs,
+# meaningfully smaller image) if you'd rather use that.
+RUN pip install --no-cache-dir -r /app/ml/requirements-serving.txt
 
 COPY ml /app/ml
 COPY models /app/models
-
-# Generate the Python gRPC stubs from the shared proto at image build time
-# so the image is self-contained (no protoc needed at runtime).
-COPY shared/proto /app/shared/proto
-RUN python -m grpc_tools.protoc -I /app/shared/proto \
-      --python_out=/app/ml/serving --grpc_python_out=/app/ml/serving \
-      /app/shared/proto/inference/v1/inference.proto \
-    && touch /app/ml/serving/inference/__init__.py /app/ml/serving/inference/v1/__init__.py
+COPY --from=protogen /build/generated /app/ml/serving
 
 WORKDIR /app/ml/serving
 ENV MODELS_DIR=/app/models
